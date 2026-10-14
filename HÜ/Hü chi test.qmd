@@ -1,0 +1,184 @@
+---
+title: "2.Hausaufgabe oder so"
+format: html
+editor: visual
+---
+
+## 2 Aufgabe chi test
+
+[Aufgabe 0:]{.underline}
+
+```{r}
+library(tidyverse)
+
+daten <- read.csv(r"(C:\Users\Enzob\OneDrive - HTL Spengergasse\5.Klasse\PMM\GRG-PMM\assets\betriebsdaten.csv)") |>
+  mutate(iok = if_else(is.na(masse_mm), NA_character_,
+               if_else(abs(masse_mm - 10) > 0.15, "ausserhalb", "in_Toleranz")))
+
+tab <- table(daten$maschine, daten$iok)
+tab
+```
+
+[Aufgabe 1:]{.underline}
+
+```{r}
+37+39+34+6
+
+```
+
+## **1. Vorhersagen (ohne R — erst hinschreiben!)**
+
+**a)** Wie viele gültige Messungen hat die Tabelle insgesamt? 116 Warum nicht 120? Weil 4 Messungen ungültig waren und aussortiert worden sind.
+
+**b)** Wie viele Ausschusteile wären bei **Unabhängigkeit** (H0) in Zeile M1 zu erwarten? Rechne die Formel von Hand:
+
+```{r}
+(37*6)/116
+```
+
+​Erwartet M1 außen: 1.91
+
+**c)** Wie viele der sechs Zellen liegen erwartungsgemäß unter 5? Die Regel verlangt: mindestens 80 % müssen ≥ 5 sein. Ist sie hier erfüllt? \_\_\_\_\_\_\_\_\_\_\_\_ Welches Testverfahren folgt daraus? \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
+
+```{r}
+#M1
+(37*6)/116
+```
+
+```{r}
+#M2
+(39*6)/116
+```
+
+```{r}
+#M3
+(40*6)/116
+```
+
+3 von 6 Zellen liegen unter 5, also nur die Hälfte (50%), die 80% sind nicht erfüllt. Testverfahren???
+
+## **Aufagabe 2**
+
+2a,
+
+M1: 1,91; M2: 2,01 M3: 7,46
+
+2b,
+
+```{r}
+tab <- table(daten$maschine, daten$iok)
+chisq.test(tab)
+```
+
+```{r}
+erwartet <- outer(rowSums(tab), colSums(tab)) / sum(tab)
+round((tab - erwartet)^2 / erwartet, 4)
+```
+
+Summe:12,022
+
+Vergleich**:** Bei M3 außerhalb weicht die Handrechnung am stärksten ab, weil durch das Quadrieren von (6-2,07) Rundungsfehler im Zähler stark vergrößert werden
+
+2c,
+
+M3 außerhalb: 7,47
+
+A: Sie hat die größte Abweichung im Zähler (6 statt erwarteten 2). Da die Nenner bei allen drei Maschinen fast identisch klein sind ($\approx 2$), entscheidet hier der Zähler.
+
+## **Aufagabe 3**
+
+```{r}
+
+chisq.test(tab)
+fisher.test(tab
+```
+
+x\^2:12,022 ; df:2 ; p-wert(chi): 0,0025 ; p-wert (fisher): 0,0021
+
+3a,
+
+```{r}
+((3-1)*(2-1))
+```
+
+df=2
+
+3b,
+
+Warning in chisq.test(tab) :
+Chi-Quadrat-Approximation kann inkorrekt sein
+
+3c,
+
+Wenn alle drei Maschinen in Wirklichkeit dieselbe Fehlerquote hätten H0, beträgt die Wahrscheinlichkeit für ein solches oder extremeres Ergebnis rein zufällig nur **0,0025** (also $0{,}25\,\%$).
+
+## **Aufagabe 4**
+
+```{r}
+
+# Tests einzeln gegen 10 % Ausschuss (90 % gut, 10 % Ausschuss)
+chisq.test(c(37, 0), p = c(0.9, 0.1)) # M1
+chisq.test(c(39, 0), p = c(0.9, 0.1)) # M2
+chisq.test(c(34, 6), p = c(0.9, 0.1)) # M3
+
+```
+
+```{r}
+quoten <- daten |> filter(!is.na(masse_mm)) |>
+group_by(maschine) |>
+summarise(n = n(), aus = sum(iok == "ausserhalb"),
+.groups = "drop") |>
+mutate(in_toleranz = n - aus)
+# Anpassungstest je Maschine gegen 10 % Ausschuss
+lapply(split(quoten, quoten$maschine), function(q) {
+suppressWarnings(
+chisq.test(c(q$in_toleranz, q$aus), p = c(0.9, 0.1)))
+})
+```
+
+| Maschine | beobachtet | erwartet | x\^2 | p-Wert |
+|----------|------------|----------|------|--------|
+| M1       | 37/0       | 37/3,7   | 4,11 | 0,0426 |
+| M2       | 39/0       | 39/3,9   | 4,33 | 0,0374 |
+| M§       | 34/6       | 36/4,0   | 1,11 | 0,2918 |
+
+4b,
+
+M1 und M2 ist aufällig wegen p-wert.\
+Sie weichen **positiv** ab (sie produzieren $0\,\%$ Ausschuss statt der erlaubten $10\,\%$). \
+Der Test liefert nur einen ungerichteten p-Wert. Die Richtung erkennt man erst durch den direkten Vergleich von **beobachtet** ($0$) mit **erwartet** ($\approx 3{,}8$).
+
+4c,\
+Der Anpassungstest testet ungerichtet nur auf eine Abweichung vom Sollwert, unterscheidet also nicht zwischen positiven (kein Ausschuss) und negativen Abweichungen. Eine Maschine mit $0\,\%$ Ausschuss fällt statistisch durch, obwohl sie für die Produktion optimal ist. Zudem bedeutet ein nicht-signifikanter Wert wie bei M3 nicht zwingend hohe Güte, sondern oft nur eine zu kleine Stichprobe.
+
+4d,
+
+Passt das Ergebnis einer einzelnen Maschine zur theoretischen Vorgabe von 90 : 10 Ausschussquote? \
+Welche Maschine im direkten Vergleich untereinander signifikant besser oder fehlerhafter produziert.\
+
+## **Aufagabe 5**
+
+5a,\
+**Werte:** $\text{M1 außerhalb} = 1{,}91$, $\text{M2 außerhalb} = 2{,}02$, $\text{M3 außerhalb} = 2{,}07$\
+**Prozent:** $3$ von $6$ Zellen = $50\,\%$.
+
+5b,\
+**Nicht erfüllt** (nur $50\,\%$ statt $\ge 80\,\%$).\
+**Bedeutung für** $p = 0{,}0025$: Der p-Wert des Chi-Quadrat-Tests ist verzerrt und ungenau (daher Fisher-Test nutzen).
+
+5c,\
+**Wortlaut:** `"Chi-squared approximation may be incorrect"Warum? Bei allen Maschinen liegt die erwartete Ausschusszahl unter`$5$ ($3{,}7$, $3{,}9$ und $4{,}0$).\
+**Folge:** Alle p-Werte aus Aufgabe 4 sind unzuverlässig; exakte Binomialtests (`binom.test`) wären hier statistisch korrekt.
+
+## **Aufagabe 6**
+
+6a,\
+Jedes Teil wird separat gemessen\
+Jedes Teil Teil in in Tolernz oder auch nicht
+
+6b,\
+Der *Unabhängigkeitstest* vergleicht zwei kategoriale Merkmale miteinander (Maschine vs. Toleranz). Der *Anpassungstest* vergleicht eine Gruppe mit einer festen Soll-Verteilung (Maschine vs. $10\,\%$ Soll).
+
+6c,\
+Er hat nicht recht, weil der Wert $0{,}0025$ stammt aus dem Gesamttest und sagt nur aus, dass sich die Maschinen unterscheiden, nicht welche schlecht ist. Im Einzel-Anpassungstest ist M3 mit $p = 0{,}29$ gar nicht signifikant auffällig, sondern M1 und M2 fallen auf, weil sie ungewöhnlich gut ($0$ Fehler) sind.\
+\
